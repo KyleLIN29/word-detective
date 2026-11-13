@@ -46,6 +46,8 @@
     parentModal: $('#parentModal'),
     btnCloseParent: $('#btnCloseParent'),
     selQuestions: $('#selQuestions'),
+    btnSoundTest: $('#btnSoundTest'),
+    soundState: $('#soundState'),
     historyList: $('#historyList'),
     historyCount: $('#historyCount'),
     btnClearHistory: $('#btnClearHistory'),
@@ -81,6 +83,8 @@
     totalUniqueWords: 0,
     timers: new Set(),
     audioCtx: null,
+    audioPrimed: false,          // iOS/Android：首次手势里已用静音 buffer 解锁
+    currentAudioEl: null,        // 解码失败时的 <audio> 兜底
     buffers: new Map(),          // word id -> AudioBuffer
     loadingAudio: new Map(),     // word id -> Promise<AudioBuffer|null>
     currentSource: null,
@@ -191,29 +195,62 @@
 
   /* ---------------- 音频 ---------------- */
 
-  async function ensureAudio() {
-    if (state.audioCtx) {
-      if (state.audioCtx.state === 'suspended') {
+  // iOS/Android 浏览器要求「声音必须在用户手势里启动」。
+  // 在页面任何第一次点击/触摸时就建立并唤醒 AudioContext，顺便播一个静音 buffer，
+  // 之后自动出题时的声音才不会被浏览器拦截。
+  function unlockAudio() {
+    try {
+      let ctx = state.audioCtx;
+      if (!ctx) {
+        const AudioCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtor) return null;
+        ctx = new AudioCtor();
+        state.audioCtx = ctx;
+      }
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (!state.audioPrimed) {
+        state.audioPrimed = true;
+        const rate = ctx.sampleRate || 22050;
+        const frames = Math.max(1, Math.floor(rate * 0.01));
+        const silent = ctx.createBuffer(1, frames, rate);
+        const source = ctx.createBufferSource();
+        source.buffer = silent;
+        source.connect(ctx.destination);
         try {
-          await state.audioCtx.resume();
+          source.start(0);
         } catch (err) {
           /* ignore */
         }
       }
-      return state.audioCtx;
-    }
-    const AudioCtor = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtor) return null;
-    try {
-      state.audioCtx = new AudioCtor();
-      if (state.audioCtx.state === 'suspended') await state.audioCtx.resume();
+      return ctx;
     } catch (err) {
-      state.audioCtx = null;
+      return null;
     }
-    return state.audioCtx;
+  }
+
+  async function ensureAudio() {
+    const ctx = unlockAudio();
+    if (!ctx) return null;
+    if (ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch (err) {
+        /* ignore */
+      }
+    }
+    return ctx;
   }
 
   function stopSource() {
+    if (state.currentAudioEl) {
+      try {
+        state.currentAudioEl.pause();
+        state.currentAudioEl.currentTime = 0;
+      } catch (err) {
+        /* ignore */
+      }
+      state.currentAudioEl = null;
+    }
     if (state.currentSource) {
       try {
         state.currentSource.stop();
@@ -224,21 +261,55 @@
     }
   }
 
+  // 同 id 的音频候选地址：m4a 优先，其次 audio-wav/<id>.wav
+  // （Safari/iOS 的 Web Audio 对 AAC 解码不稳定，WAV 作为兜底）
+  function audioUrls(wordObj) {
+    const urls = [];
+    if (wordObj && wordObj.audio) {
+      urls.push(wordObj.audio);
+      if (/\.m4a$/i.test(wordObj.audio)) {
+        urls.push(wordObj.audio.replace(/^audio\//, 'audio-wav/').replace(/\.m4a$/i, '.wav'));
+      }
+    }
+    return urls;
+  }
+
+  // 兼容旧版 Safari：decodeAudioData 只支持回调写法
+  function decodeAudioBuffer(ctx, raw) {
+    return new Promise((resolve, reject) => {
+      try {
+        const maybe = ctx.decodeAudioData(raw, resolve, reject);
+        if (maybe && typeof maybe.then === 'function') maybe.then(resolve, reject);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
   function loadBuffer(wordObj) {
     const ctx = state.audioCtx;
-    if (!ctx || !wordObj || !wordObj.audio) return Promise.resolve(null);
+    if (!ctx || !wordObj) return Promise.resolve(null);
     if (state.buffers.has(wordObj.id)) return Promise.resolve(state.buffers.get(wordObj.id));
     if (state.loadingAudio.has(wordObj.id)) return state.loadingAudio.get(wordObj.id);
 
     const promise = (async () => {
       try {
-        const res = await fetch(wordObj.audio, { cache: 'force-cache' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const raw = await res.arrayBuffer();
-        const buffer = await ctx.decodeAudioData(raw);
-        state.buffers.set(wordObj.id, buffer);
-        return buffer;
-      } catch (err) {
+        const urls = audioUrls(wordObj);
+        for (const url of urls) {
+          try {
+            const res = await fetch(url, { cache: 'force-cache' });
+            if (!res.ok) continue;
+            const raw = await res.arrayBuffer();
+            const buffer = await decodeAudioBuffer(ctx, raw);
+            if (buffer) {
+              state.buffers.set(wordObj.id, buffer);
+              state.audioFormat = url;
+              return buffer;
+            }
+          } catch (err) {
+            /* 试下一个地址 */
+          }
+        }
         return null;
       } finally {
         state.loadingAudio.delete(wordObj.id);
@@ -247,6 +318,25 @@
 
     state.loadingAudio.set(wordObj.id, promise);
     return promise;
+  }
+
+  function playWithAudioElement(wordObj) {
+    if (!wordObj || !wordObj.audio) return false;
+    try {
+      const audio = new Audio();
+      audio.preload = 'auto';
+      audio.playsInline = true;
+      audio.src = wordObj.audio;
+      audio.addEventListener('ended', () => {
+        if (state.currentAudioEl === audio) state.currentAudioEl = null;
+      });
+      state.currentAudioEl = audio;
+      const tried = audio.play();
+      if (tried && typeof tried.catch === 'function') tried.catch(() => {});
+      return true;
+    } catch (err) {
+      return false;
+    }
   }
 
   async function preloadLevelAudio(words) {
@@ -407,6 +497,12 @@
         };
         state.currentSource = source;
         source.start();
+        flashSpeaker();
+        return;
+      }
+
+      // 解码失败（例如 iOS 对 AAC 兼容差）时用原生 <audio> 播 m4a
+      if (playWithAudioElement(wordObj)) {
         flashSpeaker();
         return;
       }
@@ -1267,6 +1363,41 @@
     }
   }
 
+  async function runSoundTest() {
+    if (el.soundState) el.soundState.textContent = '正在试播…';
+    unlockAudio();
+    const ctx = await ensureAudio();
+    playChime('ok');
+    let decoded = false;
+    const sample = state.words.find((w) => w.audio);
+    if (ctx && sample) {
+      const buffer = await loadBuffer(sample);
+      if (buffer && ctx.state !== 'closed') {
+        try {
+          stopSource();
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          state.currentSource = source;
+          source.start();
+          decoded = true;
+        } catch (err) {
+          decoded = false;
+        }
+      }
+    }
+    if (el.soundState) {
+      const stateText = ctx ? `音频状态：${ctx.state}` : '浏览器不支持 Web Audio';
+      if (decoded) {
+        el.soundState.textContent = `已播放（${stateText}）。听到「叮」和单词声就正常；如果手机静音请打开声音。`;
+      } else if (ctx && sample) {
+        el.soundState.textContent = `声音解码失败（${stateText}），已尝试原声兜底。请再点一次，或检查系统静音/音量。`;
+      } else {
+        el.soundState.textContent = `未能播放（${stateText}）。请再点一次，或换 Safari/Chrome 打开。`;
+      }
+    }
+  }
+
   function bindEvents() {
     el.btnStartPlacement.addEventListener('click', () => startPlacement());
     el.btnLevelMode.addEventListener('click', () => {
@@ -1316,10 +1447,22 @@
     el.btnHome.addEventListener('click', goHome);
 
     document.addEventListener('keydown', onKeyDown);
+
+    // 任何一次触摸/点击都先解锁音频（iOS/Android 的自动播放限制）
+    ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown'].forEach((eventName) => {
+      document.addEventListener(eventName, unlockAudio, { capture: true, passive: true });
+    });
+
+    if (el.btnSoundTest) {
+      el.btnSoundTest.addEventListener('click', () => void runSoundTest());
+    }
+
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         stopSpeech();
         stopSource();
+      } else if (state.audioCtx && state.audioCtx.state === 'suspended') {
+        state.audioCtx.resume().catch(() => {});
       }
     });
     window.addEventListener('pagehide', () => {

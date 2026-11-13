@@ -184,6 +184,7 @@ python3 tools/make_audio.py --jobs 6         # 为新增的词补音频（只生
 - `words.json`：等级 + 词表（测试页唯一的数据源）
 - `images/`：OpenMoji SVG 图标（515 张）
 - `audio/`：`say` 生成的 m4a（515 段，约 7 KB/个）
+- `audio-wav/`：同一批音频的 WAV 版（515 段，约 11 MB），给 iOS Safari 做解码兜底
 - `data/coverage.csv`：每个词的状态（`testable` / `phrase` / `no-icon` / `icon-duplicate`），**补图就照这份清单来**
 - `data/coverage-summary.md`：上面这张覆盖率表
 
@@ -231,10 +232,12 @@ python3 tools/make_audio.py --jobs 6         # 为新增的词补音频（只生
 
 当前 `audio/` 里 515 段 TTS 音频共约 4.4 MB。低级别核心词（P1–P3）建议后续换成真人录音，效果会明显更好。
 
+**移动端兼容（重要）**：iOS Safari 的 Web Audio 对 AAC/m4a 解码不稳定，所以同时生成了 `audio-wav/`（11025 Hz 单声道 WAV）作为兜底：播放时先试 m4a，解码失败自动换 WAV；页面首次点击会自动「解锁」音频（AudioContext），家长设置里也新增了「🔊 测试一下声音」按钮，可以当场听见「叮」+ 一个单词声来确认手机音频正常。
+
 ### 存哪、多大？
 
 - 全部是本地静态文件，放在 `vocab-test/` 文件夹里，跟网页一起走；
-- 当前体积：`words.json` 约 1 MB、`images/` 约 2.8 MB（515 张 SVG）、`audio/` 约 4.4 MB、`data/` 约 1.1 MB，**合计约 10 MB**；
+- 当前体积：`words.json` 约 1 MB、`images/` 约 2.8 MB（515 张 SVG）、`audio/` 约 4.4 MB、`audio-wav/` 约 11 MB（手机兜底）、`photos/cards/` 约 3.2 MB、`data/` 约 1.1 MB，**合计约 28 MB**；
 - 如果换成 512px PNG 实物图，515 张大约 30–60 MB；
 - 想完全不依赖电脑/网络：① 部署到静态托管（GitHub Pages / Netlify）后加 Service Worker 缓存；② 以后用 Capacitor 打包成 App，资源全部内置。
 
@@ -274,6 +277,7 @@ vocab-test/
 │   ├── coverage.csv        # 每个词的状态：可测 / 短语 / 缺图 / 图标重复
 │   └── coverage-summary.md # 覆盖率汇总表
 ├── audio/                  # 515 段单词音频（say 生成）
+├── audio-wav/              # 同上的 WAV 兜底版（iOS Safari）
 ├── images/                 # 515 张 OpenMoji SVG + 来源说明
 ├── tools/
 │   ├── build_dataset.py    # Excel → words.json + 覆盖率报告 + 下载图标
