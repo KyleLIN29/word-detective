@@ -8,6 +8,14 @@
 (() => {
   'use strict';
 
+  const IS_IOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  // 10ms 静音 WAV：首次手势时用它激活 HTMLAudioElement，iOS 后续才允许程序播放
+  const SILENT_WAV =
+    'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQAAAAA=';
+
   const STORAGE_KEY = 'word-detective:v1';
   const DEFAULT_QUESTIONS = 8;
 
@@ -83,7 +91,9 @@
     totalUniqueWords: 0,
     timers: new Set(),
     audioCtx: null,
-    audioPrimed: false,          // iOS/Android：首次手势里已用静音 buffer 解锁
+    audioPrimed: false,
+    audioEl: null,
+    audioElPrimed: false,          // iOS/Android：首次手势里已用静音 buffer 解锁
     currentAudioEl: null,        // 解码失败时的 <audio> 兜底
     buffers: new Map(),          // word id -> AudioBuffer
     loadingAudio: new Map(),     // word id -> Promise<AudioBuffer|null>
@@ -222,9 +232,47 @@
           /* ignore */
         }
       }
+      primeAudioElement();
       return ctx;
     } catch (err) {
       return null;
+    }
+  }
+
+  function getAudioEl() {
+    if (state.audioEl) return state.audioEl;
+    const el = document.createElement('audio');
+    el.preload = 'auto';
+    el.setAttribute('playsinline', '');
+    el.setAttribute('webkit-playsinline', '');
+    el.style.display = 'none';
+    document.body.appendChild(el);
+    state.audioEl = el;
+    return el;
+  }
+
+  // 必须在用户手势里调用：用一小段静音激活 <audio>，之后才能程序化播放
+  function primeAudioElement() {
+    if (state.audioElPrimed) return;
+    state.audioElPrimed = true;
+    try {
+      const el = getAudioEl();
+      el.src = SILENT_WAV;
+      const p = el.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          try {
+            el.pause();
+            el.currentTime = 0;
+          } catch (err) {
+            /* ignore */
+          }
+        }).catch(() => {
+          state.audioElPrimed = false;
+        });
+      }
+    } catch (err) {
+      state.audioElPrimed = false;
     }
   }
 
@@ -322,21 +370,34 @@
 
   function playWithAudioElement(wordObj) {
     if (!wordObj || !wordObj.audio) return false;
+    const el = getAudioEl();
+    const urls = audioUrls(wordObj);
+    let idx = 0;
     try {
-      const audio = new Audio();
-      audio.preload = 'auto';
-      audio.playsInline = true;
-      audio.src = wordObj.audio;
-      audio.addEventListener('ended', () => {
-        if (state.currentAudioEl === audio) state.currentAudioEl = null;
-      });
-      state.currentAudioEl = audio;
-      const tried = audio.play();
-      if (tried && typeof tried.catch === 'function') tried.catch(() => {});
-      return true;
+      el.pause();
     } catch (err) {
-      return false;
+      /* ignore */
     }
+    const tryNext = () => {
+      const src = urls[idx];
+      idx += 1;
+      if (!src) return false;
+      el.src = src;
+      try {
+        el.currentTime = 0;
+      } catch (err) {
+        /* ignore */
+      }
+      state.currentAudioEl = el;
+      const played = el.play();
+      if (played && typeof played.catch === 'function') {
+        played.catch(() => {
+          if (idx < urls.length) tryNext();
+        });
+      }
+      return true;
+    };
+    return tryNext();
   }
 
   async function preloadLevelAudio(words) {
@@ -474,6 +535,12 @@
       stopSpeech();
       const test = state.test;
       const guardIndex = test ? test.index : -1;
+
+      // iOS / iPadOS 上 HTMLAudioElement 播放 AAC 最稳；先走这条路，避免 Web Audio 解码失败
+      if (IS_IOS && playWithAudioElement(wordObj)) {
+        flashSpeaker();
+        return;
+      }
 
       let ctx = state.audioCtx;
       if (!ctx) ctx = await ensureAudio();
@@ -1370,6 +1437,21 @@
     playChime('ok');
     let decoded = false;
     const sample = state.words.find((w) => w.audio);
+
+    // iOS / iPadOS：走已解锁的 HTMLAudioElement，最接近真机行为
+    if (IS_IOS) {
+      const ok = sample ? playWithAudioElement(sample) : false;
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      const audioEl = getAudioEl();
+      const playing = ok && (audioEl.currentTime > 0 || !audioEl.paused);
+      if (el.soundState) {
+        el.soundState.textContent = playing
+          ? `已播放（手机音频元素 | AudioContext: ${ctx ? ctx.state : '-'}）。如没声音：检查 iPhone 侧边静音开关和音量。`
+          : '播放指令被系统拦住了。请把 iPhone 侧边静音开关拨到响铃、调大音量，再点一次。';
+      }
+      return;
+    }
+
     if (ctx && sample) {
       const buffer = await loadBuffer(sample);
       if (buffer && ctx.state !== 'closed') {
