@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="单词小侦探">
+  <meta name="theme-color" content="#fff7ee">
+  <meta name="format-detection" content="telephone=no">
+  <title>单词小侦探 · 听音选图词汇量测试</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-blobs" aria-hidden="true"></div>
+
+  <main id="app">
+
+    <!-- 首页：直接开始自适应测级 -->
+    <section id="screen-home" class="screen">
+      <header class="home-head">
+        <div class="brand-mark" aria-hidden="true">🔍</div>
+        <h1 class="brand-title">单词小侦探</h1>
+        <p class="brand-sub">听一听，选出正确的图片</p>
+      </header>
+
+      <div class="start-card" id="startCard">
+        <span class="start-kicker">自适应测级</span>
+        <p class="start-desc">从最简单的词开始，题目会在不同等级之间随机穿插：答对就往更难的等级走，答错就退回来一点——大约 8–12 道题，就能知道孩子现在能听懂多少词。</p>
+        <button class="btn btn-primary btn-start" id="btnStartPlacement" type="button">开始测一测</button>
+        <p class="start-best" id="placementBest"></p>
+      </div>
+
+      <div id="homeError" class="home-error" hidden></div>
+
+      <footer class="home-foot">
+        <button class="text-btn" id="btnLevelMode" type="button">按等级测试</button>
+        <span class="foot-sep" aria-hidden="true">·</span>
+        <button class="text-btn" id="btnParent" type="button">家长设置</button>
+        <span class="credit">Made by DeepSeek</span>
+      </footer>
+    </section>
+
+    <!-- 按等级测试（给家长做月度复测） -->
+    <section id="screen-levels" class="screen hidden">
+      <header class="test-top">
+        <button class="icon-btn" id="btnLevelsBack" type="button" aria-label="返回">✕</button>
+        <div class="test-title">按等级测试</div>
+        <div class="progress-pill"><span id="levelsInfo">P1–P24</span></div>
+      </header>
+      <p class="levels-hint">给家长做月度复测用：点一个等级，抽 8 题看正确率。孩子平时直接回首页点「开始测一测」就行。</p>
+      <div class="level-grid level-grid-page" id="levelGrid"></div>
+    </section>
+
+    <!-- 测试：听单词 + 三选一 -->
+    <section id="screen-test" class="screen hidden">
+      <header class="test-top">
+        <button class="icon-btn" id="btnQuit" type="button" aria-label="退出测试">✕</button>
+        <div class="test-title" id="testTitle">L1 · 身边的词</div>
+        <div class="progress-pill"><span id="progressText">1 / 8</span></div>
+      </header>
+      <div class="test-progress" aria-hidden="true"><div class="test-progress-fill" id="progressFill"></div></div>
+      <div class="stage">
+        <p class="feedback" id="feedback" role="status">听一听，点一下图片吧</p>
+        <button class="speaker" id="btnReplay" type="button" aria-label="再听一遍单词">
+          <span class="speaker-icon" aria-hidden="true">🔊</span>
+        </button>
+        <div class="card-grid" id="cardGrid"></div>
+      </div>
+    </section>
+
+    <!-- 结果 -->
+    <section id="screen-result" class="screen hidden">
+      <div class="result-card">
+        <div class="result-emoji" id="resultEmoji" aria-hidden="true">🎉</div>
+        <h2 class="result-title" id="resultTitle">太棒啦！</h2>
+        <div class="score-ring" id="scoreRing">
+          <span class="score-num" id="scoreNum">0<small>%</small></span>
+        </div>
+        <p class="score-detail" id="scoreDetail"></p>
+        <div class="stars" id="stars" aria-hidden="true"></div>
+        <div class="missed" id="missedWrap" hidden>
+          <h3>这些词下次再见～</h3>
+          <div class="missed-list" id="missedList"></div>
+        </div>
+        <div class="result-actions">
+          <button class="btn btn-primary" id="btnAgain" type="button">再测一次</button>
+          <button class="btn btn-ghost" id="btnNextLevel" type="button" hidden>下一级 →</button>
+          <button class="btn btn-ghost" id="btnHome" type="button">回到首页</button>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- 自适应测级结果 -->
+    <section id="screen-placement" class="screen hidden">
+      <div class="result-card placement-card">
+        <div class="result-emoji" id="placementEmoji" aria-hidden="true">🎯</div>
+        <h2 class="result-title" id="placementTitle">测出来啦！</h2>
+        <div class="placement-level" id="placementLevel">P1</div>
+        <p class="placement-vocab" id="placementVocab">约 150 个词</p>
+        <p class="placement-note" id="placementNote"></p>
+        <div class="ladder" id="ladder" aria-hidden="true"></div>
+        <div class="missed" id="placementMissedWrap" hidden>
+          <h3>这次没听出的词</h3>
+          <div class="missed-list" id="placementMissed"></div>
+        </div>
+        <div class="result-actions">
+          <button class="btn btn-primary" id="btnPlacementAgain" type="button">再测一次</button>
+          <button class="btn btn-ghost" id="btnPlacementLevel" type="button">按这个等级练习</button>
+          <button class="btn btn-ghost" id="btnPlacementHome" type="button">回到开始</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 家长设置（弹层） -->
+  <div class="modal-mask hidden" id="parentModal" role="dialog" aria-modal="true" aria-labelledby="parentTitle">
+    <div class="modal">
+      <header class="modal-head">
+        <h3 id="parentTitle">家长设置</h3>
+        <button class="text-btn" id="btnCloseParent" type="button">完成</button>
+      </header>
+      <div class="modal-body">
+        <label class="setting-row">
+          <span>每轮题目数</span>
+          <select id="selQuestions">
+            <option value="6">6 题</option>
+            <option value="8">8 题</option>
+            <option value="10">10 题</option>
+            <option value="12">12 题</option>
+            <option value="16">16 题</option>
+            <option value="20">20 题</option>
+            <option value="0">全部</option>
+          </select>
+        </label>
+        <p class="setting-hint">从该等级词库里随机抽题。3 岁孩子注意力有限，6–10 题比较合适；想估得更准，可改成 16–20 题、分几次测。</p>
+
+        <h4 class="modal-subtitle">测试记录 <span id="historyCount"></span></h4>
+        <div class="history" id="historyList"></div>
+        <button class="btn btn-danger-ghost" id="btnClearHistory" type="button">清除全部记录</button>
+
+        <p class="modal-note">记录只保存在当前浏览器里。iPad 上建议把本页「添加到主屏幕」，再开启「引导式访问」，小朋友就不会误触退出。<br>首页的「开始测一测」是动态穿插测级：题目从孩子当前水平附近的等级随机抽（大致 ±2 级，会偏高或偏低），答对升级、答错降级；一般 8–12 题就停。结果取「答得稳的最高等级」，再按词表累计词数估算「能听懂多少词」，只是抽样估计，不用纠结精确数字。<br>「按等级测试」里的覆盖 xx% 表示该级词表中能出图测的词占比，其余是短语或还没配图的词。</p>
+      </div>
+    </div>
+  </div>
+
+  <noscript><p class="noscript">这个页面需要开启 JavaScript 才能使用。</p></noscript>
+
+  <script src="app.js"></script>
+</body>
+</html>

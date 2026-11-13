@@ -1,0 +1,186 @@
+{
+  "matched": [
+    {
+      "word": "apple",
+      "icon": "🍎",
+      "annotation": "red apple",
+      "file": "apple.svg"
+    },
+    {
+      "word": "banana",
+      "icon": "🍌",
+      "annotation": "banana",
+      "file": "banana.svg"
+    },
+    {
+      "word": "dog",
+      "icon": "🐕️",
+      "annotation": "dog",
+      "file": "dog.svg"
+    },
+    {
+      "word": "cat",
+      "icon": "🐈️",
+      "annotation": "cat",
+      "file": "cat.svg"
+    },
+    {
+      "word": "car",
+      "icon": "🚗",
+      "annotation": "automobile",
+      "file": "car.svg"
+    },
+    {
+      "word": "ball",
+      "icon": "⚽️",
+      "annotation": "soccer ball",
+      "file": "ball.svg"
+    },
+    {
+      "word": "fish",
+      "icon": "🐟️",
+      "annotation": "fish",
+      "file": "fish.svg"
+    },
+    {
+      "word": "bird",
+      "icon": "🐦️",
+      "annotation": "bird",
+      "file": "bird.svg"
+    },
+    {
+      "word": "sun",
+      "icon": "☀️",
+      "annotation": "sun",
+      "file": "sun.svg"
+    },
+    {
+      "word": "milk",
+      "icon": "🥛",
+      "annotation": "glass of milk",
+      "file": "milk.svg"
+    },
+    {
+      "word": "shoe",
+      "icon": "👟",
+      "annotation": "running shoe",
+      "file": "shoe.svg"
+    },
+    {
+      "word": "hat",
+      "icon": "🧢",
+      "annotation": "billed cap",
+      "file": "hat.svg"
+    },
+    {
+      "word": "bus",
+      "icon": "🚌",
+      "annotation": "bus",
+      "file": "bus.svg"
+    },
+    {
+      "word": "tree",
+      "icon": "🌳",
+      "annotation": "deciduous tree",
+      "file": "tree.svg"
+    },
+    {
+      "word": "star",
+      "icon": "⭐️",
+      "annotation": "star",
+      "file": "star.svg"
+    },
+    {
+      "word": "duck",
+      "icon": "🦆",
+      "annotation": "duck",
+      "file": "duck.svg"
+    },
+    {
+      "word": "frog",
+      "icon": "🐸",
+      "annotation": "frog",
+      "file": "frog.svg"
+    },
+    {
+      "word": "cake",
+      "icon": "🍰",
+      "annotation": "shortcake",
+      "file": "cake.svg"
+    },
+    {
+      "word": "bed",
+      "icon": "🛏️",
+      "annotation": "bed",
+      "file": "bed.svg"
+    },
+    {
+      "word": "hand",
+      "icon": "✋️",
+      "annotation": "raised hand",
+      "file": "hand.svg"
+    },
+    {
+      "word": "elephant",
+      "icon": "🐘",
+      "annotation": "elephant",
+      "file": "elephant.svg"
+    },
+    {
+      "word": "giraffe",
+      "icon": "🦒",
+      "annotation": "giraffe",
+      "file": "giraffe.svg"
+    },
+    {
+      "word": "umbrella",
+      "icon": "☂️",
+      "annotation": "umbrella",
+      "file": "umbrella.svg"
+    },
+    {
+      "word": "clock",
+      "icon": "⏰️",
+      "annotation": "alarm clock",
+      "file": "clock.svg"
+    },
+    {
+      "word": "spoon",
+      "icon": "🥄",
+      "annotation": "spoon",
+      "file": "spoon.svg"
+    },
+    {
+      "word": "train",
+      "icon": "🚆",
+      "annotation": "train",
+      "file": "train.svg"
+    },
+    {
+      "word": "rabbit",
+      "icon": "🐇",
+      "annotation": "rabbit",
+      "file": "rabbit.svg"
+    },
+    {
+      "word": "strawberry",
+      "icon": "🍓",
+      "annotation": "strawberry",
+      "file": "strawberry.svg"
+    },
+    {
+      "word": "butterfly",
+      "icon": "🦋",
+      "annotation": "butterfly",
+      "file": "butterfly.svg"
+    },
+    {
+      "word": "guitar",
+      "icon": "🎸",
+      "annotation": "guitar",
+      "file": "guitar.svg"
+    }
+  ],
+  "unmatched": [],
+  "unclear": []
+}

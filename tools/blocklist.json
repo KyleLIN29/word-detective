@@ -1,0 +1,28 @@
+{
+ "blocked": [
+  "face",
+  "finger",
+  "pick",
+  "board",
+  "chest",
+  "decoration",
+  "dressing",
+  "food",
+  "football",
+  "horn",
+  "index",
+  "machine",
+  "mate",
+  "office",
+  "pole",
+  "polish",
+  "score",
+  "suit",
+  "thirty",
+  "training",
+  "tray",
+  "root",
+  "dish",
+  "arrival"
+ ]
+}
